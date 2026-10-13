@@ -1,9 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import path from 'path';
+import fs from 'fs';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Habilita validação automática com base nos DTOs
   // whitelist: true remove automaticamente qualquer campo indesejado enviado no corpo da requisição (segurança contra Mass Assignment)
@@ -22,6 +25,20 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
+
+  // Habilita o servidor de arquivos estáticos para o frontend do Kanban
+  const candidatePaths = [
+    path.resolve(process.cwd(), 'public'),
+    path.resolve(process.cwd(), '../public'),
+    path.resolve(process.cwd(), '..'),
+  ];
+  for (const candidate of candidatePaths) {
+    if (fs.existsSync(path.join(candidate, 'index.html'))) {
+      app.useStaticAssets(candidate);
+      console.log(`📁 Frontend estático servido a partir de: ${candidate}`);
+      break;
+    }
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');

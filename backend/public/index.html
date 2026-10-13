@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <title>TaskManager — Kanban (Demo)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="api.js" defer></script>
+  <script src="script.js" defer></script>
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body data-theme="dark">
+
+  <div id="td-topbar">
+    <a href="#/" class="td-topbar-brand"><i class="fas fa-clipboard-list" style="color:#3b82f6;"></i> TaskManager</a>
+    <div class="td-topbar-actions">
+      <button class="td-icon-btn" id="restore-demo-btn" title="Restaurar dados de exemplo"
+        onclick="restoreDemoData()"><i class="fas fa-rotate"></i></button>
+      <button class="td-icon-btn" id="bell-btn" title="Lembretes" onclick="openReminderModal()">
+        <i class="fas fa-bell"></i>
+        <span class="td-bell-badge" id="bell-badge"></span>
+      </button>
+      <div class="acc-wrap">
+        <button class="td-icon-btn acc-btn" id="acc-btn" title="Cor de destaque" onclick="toggleAccentPop(event)"><span
+            id="acc-swatch"></span></button>
+        <div class="acc-pop" id="acc-pop">
+          <div class="acc-dot" data-accent="blue" style="background:linear-gradient(135deg,#3b82f6,#6366f1)"
+            onclick="setAccent('blue')" title="Azul"></div>
+          <div class="acc-dot" data-accent="violet" style="background:linear-gradient(135deg,#8b5cf6,#d946ef)"
+            onclick="setAccent('violet')" title="Violeta"></div>
+          <div class="acc-dot" data-accent="emerald" style="background:linear-gradient(135deg,#10b981,#22d3ee)"
+            onclick="setAccent('emerald')" title="Esmeralda"></div>
+          <div class="acc-dot" data-accent="rose" style="background:linear-gradient(135deg,#f43f5e,#fb7185)"
+            onclick="setAccent('rose')" title="Rosa"></div>
+          <div class="acc-dot" data-accent="amber" style="background:linear-gradient(135deg,#f59e0b,#fb923c)"
+            onclick="setAccent('amber')" title="Âmbar"></div>
+          <div class="acc-dot" data-accent="cyan" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)"
+            onclick="setAccent('cyan')" title="Ciano"></div>
+        </div>
+      </div>
+      <!-- Botão de Autenticação / Perfil de Usuário -->
+      <button class="td-icon-btn td-auth-btn" id="auth-topbar-btn" title="Entrar ou criar conta" onclick="openAuthModal()">
+        <i class="fas fa-user-circle"></i>
+        <span class="auth-btn-label" id="auth-btn-label" style="display:none;">Entrar</span>
+      </button>
+      <button class="td-icon-btn" id="theme-toggle-btn" title="Alternar tema" onclick="toggleTheme()"><i
+          class="fas fa-sun"></i></button>
+    </div>
+  </div>
+
+  <button id="td-fab" title="Adicionar" onclick="fabAction()"><i class="fas fa-plus"></i></button>
+
+  <div id="td-app">
+
+    <!-- ═══════════════ PAGE: BOARD LIST ═══════════════ -->
+    <div id="page-boards">
+      <div class="td-workspace">
+        <div class="td-top">
+          <div>
+            <div class="td-title">TaskManager</div>
+            <div class="td-subtitle">Seus quadros de trabalho</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="td-pdf-btn" id="boards-pdf-btn" onclick="window.print()" title="Exportar PDF">
+              <i class="fas fa-file-pdf"></i> PDF
+            </button>
+            <button class="td-new-btn" onclick="openNewBoard()">
+              <i class="fas fa-plus"></i> Novo Board
+            </button>
+          </div>
+        </div>
+
+        <div class="td-search-wrap">
+          <i class="fas fa-search"></i>
+          <input type="text" class="td-search" placeholder="Buscar boards..." id="td-search-input"
+            oninput="filterBoards()">
+        </div>
+
+        <div id="td-boards-label"
+          style="font-size:0.72rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;">
+          <i class="fas fa-th-large" style="margin-right:6px;"></i>Meus Boards
+        </div>
+        <div class="td-grid" id="td-board-grid"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ PAGE: BOARD DETAIL ═══════════════ -->
+    <div id="page-board" style="display:none;">
+      <div class="td-board-root">
+        <div class="td-board-header">
+          <a href="#/" class="td-board-back"><i class="fas fa-arrow-left"></i> Boards</a>
+          <span class="td-board-emoji" id="board-emoji"></span>
+          <span class="td-board-name" id="board-name"></span>
+          <button class="td-col-btn" title="Editar board" onclick="openEditBoardModal()"
+            style="margin-left:2px;font-size:0.8rem;color:#475569;">
+            <i class="fas fa-pen"></i>
+          </button>
+
+          <div id="board-members" style="display:flex;align-items:center;margin-left:10px;"></div>
+
+          <div style="margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <div class="td-view-tabs">
+              <button class="td-view-tab active" data-mode="kanban" onclick="switchViewTab(this)"><i
+                  class="fas fa-columns"></i> Kanban</button>
+              <button class="td-view-tab" data-mode="list" onclick="switchViewTab(this)"><i class="fas fa-list"></i>
+                Lista</button>
+              <button class="td-view-tab" data-mode="table" onclick="switchViewTab(this)"><i class="fas fa-table"></i>
+                Tabela</button>
+            </div>
+            <button class="td-add-col-btn td-ai-header-btn" id="ai-digest-btn" onclick="openBoardDigestModal()" title="Gerar resumo executivo inteligente com IA (Gemini)">
+              <i class="fas fa-wand-magic-sparkles"></i> Resumo IA
+            </button>
+            <button class="td-add-col-btn td-pdf-btn" onclick="exportBoardPDF()" title="Exportar PDF">
+              <i class="fas fa-file-pdf"></i> PDF
+            </button>
+            <button class="td-add-col-btn" onclick="document.getElementById('add-col-form').classList.toggle('d-none')">
+              <i class="fas fa-plus"></i> Coluna
+            </button>
+          </div>
+        </div>
+
+        <div id="add-col-form" class="d-none" style="padding:12px 24px 0;">
+          <form onsubmit="return addColumn(event)" style="display:flex;gap:8px;max-width:400px;">
+            <input type="text" name="name" class="td-prop-input" placeholder="Nome da coluna" required
+              style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:9px;padding:9px 12px;">
+            <input type="color" name="color" value="#3b82f6"
+              style="width:40px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;">
+            <button type="submit"
+              style="background:#3b82f6;border:none;border-radius:9px;padding:9px 16px;color:#fff;font-size:0.85rem;cursor:pointer;">Criar</button>
+            <button type="button" onclick="this.closest('#add-col-form').classList.add('d-none')"
+              style="background:rgba(255,255,255,0.06);border:none;border-radius:9px;padding:9px 12px;color:#94a3b8;cursor:pointer;">✕</button>
+          </form>
+        </div>
+
+        <div id="view-kanban" class="td-view">
+          <div class="td-kanban-wrap" id="kanban-cols"></div>
+        </div>
+
+        <div id="view-list" class="td-view" style="display:none;">
+          <div class="td-list-wrap" id="view-list-wrap"></div>
+        </div>
+
+        <div id="view-table" class="td-view" style="display:none;">
+          <div class="td-table-wrap">
+            <table class="td-table">
+              <thead>
+                <tr>
+                  <th style="width:32px;"></th>
+                  <th>Título</th>
+                  <th>Coluna</th>
+                  <th>Status</th>
+                  <th>Prioridade</th>
+                  <th>Responsável</th>
+                  <th>Prazo</th>
+                  <th>Progresso</th>
+                </tr>
+              </thead>
+              <tbody id="view-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#td-app -->
+
+  <!-- ═══════════════ BULK ACTION BAR ═══════════════ -->
+  <div id="bulk-bar">
+    <span class="bulk-count" id="bulk-count-label">0 selecionadas</span>
+    <div style="position:relative;">
+      <button class="bulk-btn" onclick="toggleBulkDropdown('bulk-color-drop')"><i class="fas fa-palette"></i>
+        Cor</button>
+      <div class="bulk-dropdown" id="bulk-color-drop" style="min-width:180px;">
+        <div id="bulk-color-swatches" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px;"></div>
+        <button
+          style="width:100%;margin-top:6px;background:rgba(255,255,255,0.07);border:none;border-radius:7px;padding:6px;color:#94a3b8;font-size:0.78rem;cursor:pointer;"
+          onclick="doBulkAction('color','')">✕ Remover cor</button>
+      </div>
+    </div>
+    <div style="position:relative;">
+      <button class="bulk-btn" onclick="toggleBulkDropdown('bulk-status-drop')"><i class="fas fa-circle-dot"></i>
+        Status</button>
+      <div class="bulk-dropdown" id="bulk-status-drop" style="flex-direction:column;min-width:160px;">
+        <button class="bulk-btn" style="justify-content:flex-start;" onclick="doBulkAction('status','todo')">○ Não
+          iniciado</button>
+        <button class="bulk-btn" style="justify-content:flex-start;" onclick="doBulkAction('status','doing')">⏳ Em
+          andamento</button>
+        <button class="bulk-btn" style="justify-content:flex-start;" onclick="doBulkAction('status','done')">✓
+          Concluído</button>
+      </div>
+    </div>
+    <div style="position:relative;">
+      <button class="bulk-btn" onclick="toggleBulkDropdown('bulk-pri-drop')"><i class="fas fa-flag"></i>
+        Prioridade</button>
+      <div class="bulk-dropdown" id="bulk-pri-drop" style="flex-direction:column;min-width:140px;">
+        <button class="bulk-btn" style="justify-content:flex-start;" onclick="doBulkAction('priority','alta')">🔴
+          Alta</button>
+        <button class="bulk-btn" style="justify-content:flex-start;" onclick="doBulkAction('priority','media')">🟡
+          Média</button>
+        <button class="bulk-btn" style="justify-content:flex-start;" onclick="doBulkAction('priority','baixa')">🟢
+          Baixa</button>
+      </div>
+    </div>
+    <div class="bulk-sep"></div>
+    <button class="bulk-btn danger" onclick="doBulkDelete()"><i class="fas fa-trash-alt"></i> Excluir</button>
+    <button class="bulk-cancel" onclick="clearSelection()" title="Cancelar seleção">✕</button>
+  </div>
+
+  <!-- ═══════════════ MODAL: NOVO/EDITAR BOARD ═══════════════ -->
+  <div class="td-modal-bd" id="td-new-modal">
+    <div class="td-modal" style="max-width:520px;">
+      <h4 id="td-modal-title">✨ Novo Board</h4>
+
+      <!-- Abas Principais: Personalização vs Membros -->
+      <div class="td-nb-main-tabs" id="nb-main-tabs">
+        <button type="button" class="td-nb-main-tab active" id="nb-tab-btn-custom" onclick="switchNewBoardTab('custom', this)">
+          🎨 Personalização
+        </button>
+        <button type="button" class="td-nb-main-tab" id="nb-tab-btn-members" onclick="switchNewBoardTab('members', this)">
+          👥 Membros da Equipe <span class="td-nb-count-badge" id="nb-members-count-badge" style="display:none;">0</span>
+        </button>
+      </div>
+
+      <form onsubmit="return submitBoardForm(event)" id="td-board-form">
+        <input type="hidden" id="td-emoji-val" value="📋">
+        <input type="hidden" id="td-cover-val" value="linear-gradient(135deg,#0f0c29,#302b63)">
+        <input type="hidden" id="td-edit-board-id" value="">
+
+        <!-- PAINEL 1: PERSONALIZAÇÃO & CAPA -->
+        <div id="nb-panel-custom">
+          <label class="td-field-label">Nome do board</label>
+          <input type="text" id="td-board-name-input" class="td-text-input"
+            placeholder="Ex: Desenvolvimento, Marketing..." required autofocus>
+
+          <label class="td-field-label">Capa</label>
+          <div class="td-cover-preview" id="cover-preview">📋</div>
+          <div class="td-cover-tabs">
+            <button type="button" class="td-cover-tab active" onclick="switchCoverTab('color',this)">🎨 Cor</button>
+            <button type="button" class="td-cover-tab" onclick="switchCoverTab('gradient',this)">🌈 Gradiente</button>
+            <button type="button" class="td-cover-tab" onclick="switchCoverTab('image',this)">🖼️ Imagem</button>
+          </div>
+
+          <div id="panel-color">
+            <div class="td-color-section">
+              <div class="td-color-section-label">Cores básicas</div>
+              <div class="td-color-grid" id="color-grid-basic"></div>
+            </div>
+            <div class="td-color-section">
+              <div class="td-color-section-label">Tons escuros</div>
+              <div class="td-color-grid" id="color-grid-dark"></div>
+            </div>
+            <div class="td-color-section">
+              <div class="td-color-section-label">Tom personalizado</div>
+              <div class="td-custom-color-wrap">
+                <input type="color" class="td-custom-color-input" id="custom-color-input" value="#3b82f6"
+                  oninput="pickCustomColor(this.value)">
+                <span class="td-custom-color-label">Escolha qualquer cor</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="panel-gradient" style="display:none;">
+            <div class="td-grad-grid" id="grad-grid"></div>
+          </div>
+
+          <div id="panel-image" style="display:none;">
+            <div class="td-color-section-label">Enviar do computador</div>
+            <label id="upload-label"
+              style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.2);border-radius:10px;padding:12px 16px;cursor:pointer;transition:border-color .18s;margin-bottom:14px;">
+              <i class="fas fa-cloud-upload-alt" style="color:#64748b;font-size:1.1rem;"></i>
+              <span id="upload-label-text" style="font-size:0.85rem;color:#64748b;">Clique para escolher uma
+                imagem...</span>
+              <input type="file" id="cover-image-input" accept="image/*" style="display:none;"
+                onchange="onCoverFileChange(this)">
+            </label>
+            <div class="td-color-section-label">Ou escolha uma sugestão</div>
+            <div class="td-img-grid" id="img-grid"></div>
+            <div style="font-size:0.75rem;color:#475569;margin-bottom:6px;margin-top:8px;">Ou cole a URL de uma imagem:
+            </div>
+            <div class="td-img-url-wrap">
+              <input type="text" class="td-img-url-input" id="img-url-input" placeholder="https://...">
+              <button type="button" class="td-img-url-btn" onclick="applyImgUrl()">Aplicar</button>
+            </div>
+          </div>
+
+          <div style="height:22px;"></div>
+
+          <label class="td-field-label">Ícone</label>
+          <input type="text" class="td-emoji-search" id="emoji-search" placeholder="Buscar ícone..."
+            oninput="filterEmoji()">
+          <div class="td-emoji-cats" id="emoji-cats"></div>
+          <div class="td-emoji-grid" id="emoji-grid"></div>
+        </div>
+
+        <!-- PAINEL 2: MEMBROS DA EQUIPE NA CRIAÇÃO -->
+        <div id="nb-panel-members" style="display:none;">
+          <div style="font-size:0.83rem;color:#94a3b8;margin-bottom:14px;line-height:1.5;">
+            Selecione quais usuários cadastrados terão acesso a este quadro. Somente os membros adicionados poderão visualizar e colaborar nas tarefas da equipe.
+          </div>
+
+          <div class="td-member-search-box">
+            <i class="fas fa-search" style="color:#64748b;font-size:0.85rem;"></i>
+            <input type="text" id="nb-search-users-input" class="td-member-search-input"
+              placeholder="Pesquisar por nome ou e-mail..." oninput="onSearchNewBoardUsers(this.value)">
+          </div>
+
+          <div style="font-size:0.72rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:14px;margin-bottom:6px;">
+            Membros Selecionados (<span id="nb-selected-count-label">0</span>)
+          </div>
+          <div class="td-selected-chips-wrap" id="nb-selected-chips"></div>
+
+          <div style="font-size:0.72rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:14px;margin-bottom:6px;">
+            Usuários Cadastrados Disponíveis
+          </div>
+          <div class="td-users-pick-list" id="nb-users-pick-list"></div>
+        </div>
+
+        <div class="td-modal-actions">
+          <button type="button" class="td-btn-cancel" onclick="closeNewBoard()">Cancelar</button>
+          <button type="submit" class="td-btn-create" id="td-submit-btn">Criar Board</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL: MEMBROS DO QUADRO (BOTÃO INTERNO) ═══════════════ -->
+  <div class="td-task-modal-bd" id="members-modal">
+    <div class="td-task-modal" style="max-width:480px;">
+      <div class="td-modal-cover"
+        style="background:linear-gradient(135deg,#1e3a5f,#0f2027);min-height:56px;flex-shrink:0;">
+        <button class="td-modal-close" onclick="closeMembersModal()"><i
+            class="fas fa-times"></i></button>
+      </div>
+      <div class="td-modal-body" style="padding:24px 28px 28px;">
+        <div style="font-size:1.1rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-users" style="color:#3b82f6;"></i> Membros do Quadro
+        </div>
+        <div
+          style="font-size:0.72rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+          Participantes com Acesso (<span id="board-members-count">0</span>)</div>
+        <div id="members-list" style="margin-bottom:20px;max-height:210px;overflow-y:auto;"></div>
+
+        <div
+          style="font-size:0.72rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+          Adicionar Participante Cadastrado</div>
+        <div class="td-member-search-box" style="margin-bottom:10px;">
+          <i class="fas fa-search" style="color:#64748b;font-size:0.85rem;"></i>
+          <input type="text" id="board-add-member-search" class="td-member-search-input"
+            placeholder="Pesquisar por nome ou e-mail..." oninput="onSearchBoardUsers(this.value)">
+        </div>
+        <div id="board-search-results-list" class="td-users-pick-list" style="max-height:180px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL: EDITAR BOARD ═══════════════ -->
+  <div class="td-task-modal-bd" id="edit-board-modal">
+    <div class="td-task-modal" style="max-width:440px;max-height:auto;overflow:visible;">
+      <div class="td-modal-cover" id="eb-cover-header" style="min-height:60px;flex-shrink:0;">
+        <button class="td-modal-close" onclick="document.getElementById('edit-board-modal').classList.remove('open')"><i
+            class="fas fa-times"></i></button>
+      </div>
+      <div class="td-modal-body" style="padding:24px 28px 28px;">
+        <form onsubmit="return saveEditBoard(event)">
+          <input type="hidden" id="eb-emoji-val" value="📋">
+          <input type="hidden" id="eb-cover-val" value="">
+
+          <div
+            style="font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+            Nome</div>
+          <input type="text" id="eb-name-input"
+            style="width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px 14px;font-size:1rem;color:#f1f5f9;outline:none;margin-bottom:18px;font-family:inherit;"
+            required>
+
+          <div
+            style="font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+            Ícone</div>
+          <div id="eb-emoji-display"
+            style="font-size:2rem;cursor:pointer;display:inline-block;padding:4px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);margin-bottom:12px;"
+            onclick="document.getElementById('eb-emoji-picker').classList.toggle('open-inline')">📋</div>
+          <div id="eb-emoji-picker"
+            style="display:none;background:#1e2a3a;border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:10px;margin-bottom:14px;">
+            <div style="display:flex;flex-wrap:wrap;gap:5px;max-height:140px;overflow-y:auto;" id="eb-emoji-grid"></div>
+          </div>
+
+          <div
+            style="font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">
+            Capa</div>
+          <div id="eb-cover-preview"
+            style="height:52px;border-radius:10px;margin-bottom:10px;background:#1e293b;background-size:cover;background-position:center;transition:background .3s;">
+          </div>
+          <div
+            style="display:flex;gap:6px;background:rgba(255,255,255,0.05);border-radius:8px;padding:3px;margin-bottom:10px;">
+            <button type="button" class="eb-tab active" data-tab="color" onclick="ebSwitchTab(this)">🎨 Cor</button>
+            <button type="button" class="eb-tab" data-tab="gradient" onclick="ebSwitchTab(this)">🌈 Gradiente</button>
+            <button type="button" class="eb-tab" data-tab="image" onclick="ebSwitchTab(this)">🖼️ Imagem</button>
+          </div>
+          <div id="eb-panel-color">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;" id="eb-color-grid"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="color"
+                style="width:36px;height:30px;border:none;border-radius:7px;cursor:pointer;padding:2px;background:none;"
+                oninput="ebSetCover(this.value)">
+              <span style="font-size:0.8rem;color:#475569;">Cor personalizada</span>
+            </div>
+          </div>
+          <div id="eb-panel-gradient" style="display:none;">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;" id="eb-grad-grid"></div>
+          </div>
+          <div id="eb-panel-image" style="display:none;">
+            <label
+              style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.2);border-radius:8px;padding:10px 14px;cursor:pointer;margin-bottom:10px;">
+              <i class="fas fa-cloud-upload-alt" style="color:#64748b;"></i>
+              <span id="eb-upload-label" style="font-size:0.82rem;color:#64748b;">Enviar do computador...</span>
+              <input type="file" id="eb-file-input" accept="image/*" style="display:none;"
+                onchange="ebOnFileChange(this)">
+            </label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px;" id="eb-img-grid">
+            </div>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="eb-img-url" placeholder="URL da imagem..."
+                style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:7px 10px;color:#f1f5f9;font-size:0.8rem;outline:none;">
+              <button type="button" onclick="ebApplyUrl()"
+                style="background:rgba(59,130,246,0.2);border:none;border-radius:7px;padding:7px 12px;color:#60a5fa;font-size:0.8rem;cursor:pointer;">OK</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+            <button type="button" onclick="document.getElementById('edit-board-modal').classList.remove('open')"
+              style="background:rgba(255,255,255,0.07);border:none;border-radius:9px;padding:9px 18px;color:#94a3b8;cursor:pointer;">Cancelar</button>
+            <button type="submit"
+              style="background:#3b82f6;border:none;border-radius:9px;padding:9px 22px;color:#fff;font-weight:600;cursor:pointer;">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL: LEMBRETES ═══════════════ -->
+  <div class="td-reminder-bd" id="reminder-modal-bd">
+    <div class="td-reminder-modal">
+      <div class="td-reminder-header">
+        <div class="td-reminder-icon">🔔</div>
+        <div>
+          <div class="td-reminder-title">Lembretes do dia</div>
+          <div style="font-size:0.75rem;color:#64748b;" id="reminder-subtitle">Carregando...</div>
+        </div>
+        <button class="td-reminder-close" onclick="closeReminderModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="td-reminder-body" id="reminder-list"></div>
+      <div class="td-reminder-footer">
+        <button class="td-rm-close-btn" onclick="closeReminderModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL: TAREFA ═══════════════ -->
+  <div class="td-task-modal-bd" id="task-modal-bd">
+    <div class="td-task-modal" id="task-modal">
+      <div class="td-modal-cover" id="modal-cover">
+        <span class="td-modal-save-status" id="modal-save-status"></span>
+        <button class="td-modal-close" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="td-modal-body">
+        <textarea class="td-modal-title" id="modal-title" placeholder="Título da tarefa..." rows="1"></textarea>
+
+        <div class="td-props">
+          <div class="td-prop-row">
+            <div class="td-prop-label"><i class="fas fa-circle-dot"></i> Status</div>
+            <div class="td-prop-val">
+              <select class="td-prop-select" id="modal-status" onchange="onStatusChange(this.value)">
+                <option value="todo">A fazer</option>
+                <option value="doing">Em andamento</option>
+                <option value="done">Concluído</option>
+              </select>
+            </div>
+          </div>
+          <div class="td-prop-row">
+            <div class="td-prop-label"><i class="fas fa-flag"></i> Prioridade</div>
+            <div class="td-prop-val">
+              <select class="td-prop-select" id="modal-priority" onchange="autosave()">
+                <option value="baixa">🟢 Baixa</option>
+                <option value="media">🟡 Média</option>
+                <option value="alta">🔴 Alta</option>
+              </select>
+            </div>
+          </div>
+          <div class="td-prop-row">
+            <div class="td-prop-label"><i class="fas fa-user"></i> Responsável</div>
+            <div class="td-prop-val">
+              <select class="td-prop-select" id="modal-assignee" onchange="autosave()">
+                <option value="">— Nenhum —</option>
+              </select>
+            </div>
+          </div>
+          <div class="td-prop-row">
+            <div class="td-prop-label"><i class="far fa-calendar-alt"></i> Prazo</div>
+            <div class="td-prop-val" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="date" class="td-prop-input" id="modal-deadline" onchange="autosave()"
+                style="max-width:160px;">
+              <input type="time" class="td-prop-input" id="modal-deadline-time" onchange="autosave()"
+                style="max-width:110px;" title="Horário do prazo">
+            </div>
+          </div>
+          <div class="td-prop-row">
+            <div class="td-prop-label"><i class="fas fa-chart-bar"></i> Progresso</div>
+            <div class="td-prop-val">
+              <div class="td-progress-wrap">
+                <input type="range" min="0" max="100" id="modal-progress-input"
+                  style="flex:1;accent-color:#3b82f6;cursor:pointer;" oninput="updateProgressBar(this.value)"
+                  onchange="autosave()">
+                <span class="td-progress-pct" id="modal-progress-pct">0%</span>
+              </div>
+            </div>
+          </div>
+          <div class="td-prop-row" style="align-items:flex-start;padding-top:10px;">
+            <div class="td-prop-label" style="padding-top:4px;"><i class="fas fa-tags"></i> Tags
+            </div>
+            <div class="td-prop-val" style="position:relative;">
+              <div class="td-tags-wrap" id="modal-tags-wrap">
+                <button class="td-add-tag-btn" onclick="toggleTagPicker(event)">+ Tag</button>
+              </div>
+              <div class="td-tag-picker" id="tag-picker" style="display:none;margin-top:6px;">
+                <input type="text" id="tag-name-input" placeholder="Nome da tag...">
+                <div class="td-tag-color-row" id="tag-color-row"></div>
+                <button class="td-tag-add-confirm" onclick="confirmAddTag()">Adicionar</button>
+              </div>
+            </div>
+          </div>
+          <div class="td-prop-row" style="align-items:center;padding-top:10px;">
+            <div class="td-prop-label"><i class="fas fa-palette"></i> Cor do card</div>
+            <div class="td-prop-val">
+              <div class="td-color-picker-row" id="modal-color-row">
+                <div class="td-color-none" onclick="setTaskColor('')" id="color-opt-none" title="Sem cor">✕</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="td-modal-dates" id="modal-dates"></div>
+
+        <div class="td-section-label" style="display:flex;align-items:center;justify-content:space-between;">
+          <div><i class="fas fa-align-left"></i> Descrição</div>
+          <button type="button" class="td-ai-badge-btn" id="ai-desc-btn" onclick="generateDescriptionWithAI()"
+            title="Gerar descrição profissional com Google Gemini">
+            <i class="fas fa-wand-magic-sparkles"></i> Gerar com IA
+          </button>
+        </div>
+        <textarea class="td-modal-desc" id="modal-desc" placeholder="Adicione uma descrição..."
+          oninput="autosave()"></textarea>
+
+        <div class="td-section-label" style="display:flex;align-items:center;justify-content:space-between;margin-top:20px;">
+          <div><i class="fas fa-check-square"></i> Checklist <span id="checklist-progress"
+              style="font-weight:400;"></span></div>
+          <button type="button" class="td-ai-badge-btn" id="ai-subtasks-btn" onclick="suggestSubtasksWithAI()"
+            title="Gerar subtarefas automaticamente com Google Gemini">
+            <i class="fas fa-wand-magic-sparkles"></i> Sugerir com IA
+          </button>
+        </div>
+        <div class="td-checklist" id="modal-checklist"></div>
+        <button class="td-check-add" onclick="addCheckItem()"><i class="fas fa-plus" style="font-size:0.75rem;"></i>
+          Adicionar item</button>
+
+        <div class="td-section-label" style="margin-top:24px;"><i class="fas fa-comments"></i> Comentários</div>
+        <div class="td-comments" id="modal-comments"></div>
+        <div class="td-comment-input-wrap">
+          <textarea class="td-comment-input" id="comment-input" placeholder="Escreva um comentário..." rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendComment();}"></textarea>
+          <button class="td-comment-send" onclick="sendComment()" title="Enviar"><i class="fas fa-paper-plane"
+              style="font-size:0.85rem;"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL: AUTENTICAÇÃO (LOGIN / CADASTRO) ═══════════════ -->
+  <div class="td-reminder-bd" id="auth-modal-bd">
+    <div class="td-reminder-modal td-auth-card">
+      <div class="td-reminder-header">
+        <div class="td-reminder-icon" id="auth-modal-icon">🔐</div>
+        <div>
+          <div class="td-reminder-title" id="auth-modal-title">Acessar sua Conta</div>
+          <div style="font-size:0.75rem;color:#64748b;" id="auth-modal-subtitle">Sincronize seus quadros com o banco de dados</div>
+        </div>
+        <button class="td-reminder-close" onclick="closeAuthModal()"><i class="fas fa-times"></i></button>
+      </div>
+
+      <!-- Estado: Visitante / Não Autenticado -->
+      <div id="auth-guest-view">
+        <div class="td-auth-tabs">
+          <button type="button" class="td-auth-tab active" id="tab-btn-login" onclick="switchAuthTab('login')">Entrar</button>
+          <button type="button" class="td-auth-tab" id="tab-btn-register" onclick="switchAuthTab('register')">Criar Conta</button>
+        </div>
+
+        <!-- Formulário: Entrar -->
+        <form id="auth-login-form" onsubmit="handleAuthLogin(event); return false;">
+          <div class="td-auth-field">
+            <label class="td-auth-label">E-mail</label>
+            <input type="email" id="login-email" class="td-auth-input" placeholder="seu@email.com" required autocomplete="email">
+          </div>
+          <div class="td-auth-field">
+            <label class="td-auth-label">Senha</label>
+            <input type="password" id="login-password" class="td-auth-input" placeholder="Sua senha secreta" required autocomplete="current-password">
+          </div>
+          <div id="login-error-msg" class="td-auth-error d-none"></div>
+          <button type="submit" class="td-auth-submit-btn" id="login-submit-btn">
+            <span class="btn-text">Entrar</span>
+          </button>
+        </form>
+
+        <!-- Formulário: Cadastrar -->
+        <form id="auth-register-form" onsubmit="handleAuthRegister(event); return false;" class="d-none">
+          <div class="td-auth-field">
+            <label class="td-auth-label">Nome Completo</label>
+            <input type="text" id="reg-name" class="td-auth-input" placeholder="Seu Nome" required autocomplete="name">
+          </div>
+          <div class="td-auth-field">
+            <label class="td-auth-label">E-mail</label>
+            <input type="email" id="reg-email" class="td-auth-input" placeholder="seu@email.com" required autocomplete="email">
+          </div>
+          <div class="td-auth-field">
+            <label class="td-auth-label">Senha (mínimo 6 caracteres)</label>
+            <input type="password" id="reg-password" class="td-auth-input" placeholder="Crie uma senha forte" minlength="6" required autocomplete="new-password">
+          </div>
+          <div id="register-error-msg" class="td-auth-error d-none"></div>
+          <button type="submit" class="td-auth-submit-btn" id="reg-submit-btn">
+            <span class="btn-text">Criar Conta Grátis</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Estado: Autenticado / Perfil -->
+      <div id="auth-user-view" class="d-none" style="padding:20px;">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+          <div class="td-user-avatar-lg" id="profile-avatar">U</div>
+          <div>
+            <div style="font-weight:700;font-size:1.05rem;color:#f8fafc;" id="profile-name">Usuário</div>
+            <div style="font-size:0.8rem;color:#94a3b8;" id="profile-email">usuario@exemplo.com</div>
+            <div style="font-size:0.75rem;color:#10b981;margin-top:3px;font-weight:500;">
+              <i class="fas fa-check-circle"></i> Conectado ao Supabase (PostgreSQL)
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="td-rm-close-btn" onclick="closeAuthModal()">Fechar</button>
+          <button type="button" class="td-auth-logout-btn" onclick="handleAuthLogout()">
+            <i class="fas fa-sign-out-alt"></i> Sair da Conta
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MODAL: RESUMO INTELIGENTE COM IA ═══════════════ -->
+  <div class="td-reminder-bd" id="ai-digest-modal-bd">
+    <div class="td-reminder-modal" style="max-width:560px;">
+      <div class="td-reminder-header">
+        <div class="td-reminder-icon" style="background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;">✨</div>
+        <div>
+          <div class="td-reminder-title">Resumo Executivo com Gemini IA</div>
+          <div style="font-size:0.75rem;color:#64748b;" id="ai-digest-subtitle">Análise inteligente das prioridades e prazos do quadro</div>
+        </div>
+        <button class="td-reminder-close" onclick="closeBoardDigestModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="td-reminder-body" id="ai-digest-content" style="max-height:60vh;overflow-y:auto;padding:18px 22px;line-height:1.6;font-size:0.9rem;white-space:pre-wrap;">
+        <div style="display:flex;align-items:center;gap:10px;color:#94a3b8;">
+          <i class="fas fa-circle-notch fa-spin"></i> O Gemini está analisando suas tarefas e prazos...
+        </div>
+      </div>
+      <div class="td-reminder-footer">
+        <button class="td-rm-close-btn" onclick="closeBoardDigestModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>
