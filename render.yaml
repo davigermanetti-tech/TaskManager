@@ -1,0 +1,32 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# RENDER BLUEPRINT SPECIFICATION — TASK MANAGER
+# ══════════════════════════════════════════════════════════════════════════════
+# Permite deploy automatizado com 1 clique no Render (Infrastructure as Code)
+# Documentação: https://render.com/docs/blueprint-spec
+
+services:
+  # ── Backend Web Service (NestJS + Prisma + PostgreSQL) ──
+  - type: web
+    name: task-manager-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    region: oregon
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+

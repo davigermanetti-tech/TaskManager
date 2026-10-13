@@ -1,0 +1,157 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// PRISMA SCHEMA — MODELAGEM RELACIONAL DO TASKMANAGER
+// ══════════════════════════════════════════════════════════════════════════════
+// Documentação: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── 1. Usuários do Sistema ──
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relacionamentos
+  boards           Board[]       @relation("BoardOwner")
+  boardMemberships BoardMember[]
+  comments         Comment[]
+
+  @@map("users")
+}
+
+// ── 2. Quadros de Trabalho (Boards) ──
+model Board {
+  id           String   @id @default(uuid())
+  name         String
+  emoji        String   @default("📋")
+  cover        String   @default("linear-gradient(135deg,#0f0c29,#302b63)")
+  coverIsImage Boolean  @default(false) @map("cover_is_image")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relacionamento com Usuário (Dono)
+  userId String @map("user_id")
+  user   User   @relation("BoardOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Membros do Quadro
+  members BoardMember[]
+
+  // Um Board possui várias Colunas
+  columns Column[]
+
+  @@map("boards")
+}
+
+// ── 2.1 Membros dos Quadros (Muitos-para-Muitos com Metadados) ──
+model BoardMember {
+  id        String   @id @default(uuid())
+  boardId   String   @map("board_id")
+  userId    String   @map("user_id")
+  role      String   @default("member") // 'owner' | 'member' | 'admin'
+  createdAt DateTime @default(now()) @map("created_at")
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@map("board_members")
+}
+
+// ── 3. Colunas do Kanban (A Fazer, Em Andamento, Concluído...) ──
+model Column {
+  id        String   @id @default(uuid())
+  name      String
+  color     String   @default("#3b82f6")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relacionamento com o Board
+  boardId String @map("board_id")
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  // Uma Coluna possui várias Tarefas
+  tasks Task[]
+
+  @@map("columns")
+}
+
+// ── 4. Tarefas (Tasks) ──
+model Task {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  status       String   @default("todo") // 'todo' | 'doing' | 'done'
+  priority     String   @default("media") // 'baixa' | 'media' | 'alta'
+  assignedTo   String?  @map("assigned_to")
+  deadline     String? // 'YYYY-MM-DD'
+  deadlineTime String?  @map("deadline_time") // 'HH:mm'
+  progress     Int      @default(0)
+  color        String?
+  order        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relacionamento com a Coluna
+  columnId String @map("column_id")
+  column   Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  // Relacionamentos com Sub-recursos
+  tags      Tag[]
+  checklist ChecklistItem[]
+  comments  Comment[]
+
+  @@map("tasks")
+}
+
+// ── 5. Itens da Checklist da Tarefa ──
+model ChecklistItem {
+  id        String   @id @default(uuid())
+  text      String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  taskId String @map("task_id")
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("checklist_items")
+}
+
+// ── 6. Tags/Etiquetas da Tarefa ──
+model Tag {
+  id    String @id @default(uuid())
+  text  String
+  color String @default("#3b82f6")
+
+  taskId String @map("task_id")
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("tags")
+}
+
+// ── 7. Comentários da Tarefa ──
+model Comment {
+  id        String   @id @default(uuid())
+  text      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  taskId String @map("task_id")
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}

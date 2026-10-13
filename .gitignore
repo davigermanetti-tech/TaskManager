@@ -1,0 +1,25 @@
+# Dependências
+node_modules/
+backend/node_modules/
+
+# Builds e compilação
+backend/dist/
+*.tsbuildinfo
+
+# Variáveis de ambiente sensíveis
+.env
+backend/.env
+backend/.env.local
+
+# Pastas de agentes de IA locais no backend
+backend/.agents/
+backend/.claude/
+backend/.cursor/
+backend/.devin/
+
+# Logs e sistema operacional
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+
